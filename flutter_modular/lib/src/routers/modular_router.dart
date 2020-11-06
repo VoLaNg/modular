@@ -6,8 +6,13 @@ import '../interfaces/route_guard.dart';
 import '../transitions/transitions.dart';
 import '../utils/old.dart';
 
-typedef RouteBuilder<T> = MaterialPageRoute<T> Function(
-    WidgetBuilder, RouteSettings);
+typedef RouteBuilder<T> = ModalRoute<T> Function(WidgetBuilder, RouteSettings);
+typedef _TransitionBuilder<T> = PageRouteBuilder<T> Function(
+  Widget Function(BuildContext, ModularArguments) builder,
+  ModularArguments args,
+  Duration transitionDuration,
+  RouteSettings settings,
+);
 
 _debugPrintModular(String text) {
   if (Modular.debugMode) {
@@ -190,8 +195,7 @@ class ModularRouter<T> {
 
     if (transition == null) throw ArgumentError('transition must not be null');
     if (transition == TransitionType.custom && customTransition == null) {
-      throw ArgumentError(
-          '[customTransition] required for transition type [TransitionType.custom]');
+      throw ArgumentError('[customTransition] required for transition type [TransitionType.custom]');
     }
     if (module == null && child == null) {
       throw ArgumentError('[module] or [child] must be provided');
@@ -200,14 +204,7 @@ class ModularRouter<T> {
       throw ArgumentError('You should provide only [module] or [child]');
     }
   }
-  final Map<
-      TransitionType,
-      PageRouteBuilder<T> Function(
-    Widget Function(BuildContext, ModularArguments) builder,
-    ModularArguments args,
-    Duration transitionDuration,
-    RouteSettings settings,
-  )> _transitions = {
+  final Map<TransitionType, _TransitionBuilder<T>> _transitions = {
     TransitionType.fadeIn: fadeInTransition,
     TransitionType.noTransition: noTransition,
     TransitionType.rightToLeft: rightToLeft,
@@ -221,17 +218,18 @@ class ModularRouter<T> {
     TransitionType.leftToRightWithFade: leftToRightWithFade,
   };
 
-  ModularRouter<T> copyWith(
-      {Widget Function(BuildContext context, ModularArguments args) child,
-      String routerName,
-      ChildModule module,
-      Map<String, String> params,
-      List<RouteGuard> guards,
-      TransitionType transition,
-      RouteBuilder routeGenerator,
-      String modulePath,
-      String duration,
-      CustomTransition customTransition}) {
+  ModularRouter<T> copyWith({
+    Widget Function(BuildContext context, ModularArguments args) child,
+    String routerName,
+    ChildModule module,
+    Map<String, String> params,
+    List<RouteGuard> guards,
+    TransitionType transition,
+    RouteBuilder routeGenerator,
+    String modulePath,
+    String duration,
+    CustomTransition customTransition,
+  }) {
     return ModularRouter<T>(
       routerName ?? this.routerName,
       child: child ?? this.child,
@@ -294,14 +292,13 @@ class ModularRouter<T> {
     return page;
   }
 
-  Route<T> getPageRoute(
-      {Map<String, ChildModule> injectMap,
-      RouteSettings settings,
-      bool isRouterOutlet}) {
-    final disposablePage = _disposableGenerate(
-        injectMap: injectMap,
-        path: settings.name,
-        isRouterOutlet: isRouterOutlet);
+  Route<T> getPageRoute({
+    Map<String, ChildModule> injectMap,
+    RouteSettings settings,
+    bool isRouterOutlet,
+  }) {
+    final disposablePage =
+        _disposableGenerate(injectMap: injectMap, path: settings.name, isRouterOutlet: isRouterOutlet);
 
     if (transition == TransitionType.custom && customTransition != null) {
       return PageRouteBuilder(
@@ -356,14 +353,13 @@ enum TransitionType {
 }
 
 class CustomTransition {
-  final Widget Function(
-          BuildContext, Animation<double>, Animation<double>, Widget)
-      transitionBuilder;
+  final Widget Function(BuildContext, Animation<double>, Animation<double>, Widget) transitionBuilder;
   final Duration transitionDuration;
 
-  CustomTransition(
-      {@required this.transitionBuilder,
-      this.transitionDuration = const Duration(milliseconds: 300)});
+  CustomTransition({
+    @required this.transitionBuilder,
+    this.transitionDuration = const Duration(milliseconds: 300),
+  });
 }
 
 class _DisposableWidget extends StatefulWidget {
